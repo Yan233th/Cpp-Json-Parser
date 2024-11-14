@@ -11,11 +11,18 @@
 
 #define endl '\n'
 
+using u64 = unsigned long long;
+
 class JsonObject
 {
     public:
     std::variant<std::monostate, bool, int, double, std::string, std::vector<JsonObject>, std::unordered_map<std::string, JsonObject>> Data;
 };
+
+std::variant<int, double> read_num ()
+{
+
+}
 
 std::optional<std::string> GetJsonStrData (std::string_view JsonPath)
 {
@@ -35,9 +42,10 @@ std::optional<std::string> GetJsonStrData (std::string_view JsonPath)
     }
 }
 
-JsonObject JsonParser (std::string_view JsonStrData)
+JsonObject JsonParser (std::string_view JsonStrData, u64 now)
 {
-    JsonObject current = JsonParser(JsonStrData);
+    JsonObject current = JsonParser(JsonStrData, now);
+    if (JsonStrData[now] >= '0' && JsonStrData[now] <= '9') current.Data = std::get<int> (read_num ());
     return current;
 }
 
@@ -48,7 +56,7 @@ int main ()
     std::optional<std::string> JsonStrData = GetJsonStrData(JsonPath);
     if (JsonStrData.has_value())
     {
-        JsonObject main = JsonParser (JsonStrData.value());
+        JsonObject main = JsonParser (JsonStrData.value(), 0);
     }
     else return 1;
     return 0;
