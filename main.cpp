@@ -1,63 +1,201 @@
+#include <cctype>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
+#include <iostream>
 #include <map>
-#include <unordered_map>
 #include <optional>
+#include <ostream>
+#include <span>
 #include <sstream>
+#include <stack>
 #include <string>
 #include <string_view>
-#include <iostream>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
-#define endl '\n'
-
-using u64 = unsigned long long;
-
-class JsonObject
+bool IsNum(char Value)
 {
-    public:
-    std::variant<std::monostate, bool, int, double, std::string, std::vector<JsonObject>, std::unordered_map<std::string, JsonObject>> Data;
-};
-
-std::variant<int, double> read_num ()
-{
-
+    return (((__uint64_t)Value - (__uint64_t)'0') <= ((__uint64_t)'9' - (__uint64_t)'0'));
 }
 
-std::optional<std::string> GetJsonStrData (std::string_view JsonPath)
+class JsonObject {
+  public:
+    std::variant<std::monostate, bool, int64_t, double, std::string, std::vector<JsonObject>,std::unordered_map<std::string, JsonObject>> Data;
+ 
+    JsonObject() = default;
+
+    JsonObject(bool Value) : Data(Value){};
+    JsonObject(int64_t Value) : Data(Value){};
+    JsonObject(double Value) : Data(Value){};
+    JsonObject(std::string Str) : Data(Str){};
+};
+
+std::optional<std::string> GetJsonStrData(std::string_view JsonPath)
 {
-    std::ifstream TempFile (JsonPath.data ());
+    std::ifstream TempFile(JsonPath.data());
     std::stringstream TempBuffer{};
-    if (TempFile.is_open ())
-    {
-        TempBuffer << TempFile.rdbuf ();
-        TempFile.close ();
-        std::cout << "Read Successful" << endl;
-        return TempBuffer.str ();
-    }
-    else
-    {
-        std::cout << "Read Failed" << endl;
+    if (TempFile.is_open()) {
+        TempBuffer << TempFile.rdbuf();
+        TempFile.close();
+        std::cout << "Read Successful" << '\n';
+        return TempBuffer.str();
+    } else {
+        std::cout << "Read Failed" << '\n';
         return {};
     }
 }
 
-JsonObject JsonParser (std::string_view JsonStrData, u64 now)
+std::vector<std::string> GetSplitJsonData(std::string_view JsonData)
 {
-    JsonObject current = JsonParser(JsonStrData, now);
-    if (JsonStrData[now] >= '0' && JsonStrData[now] <= '9') current.Data = std::get<int> (read_num ());
-    return current;
+    std::vector<std::string> JsonChunkList;
+    std::stack<char> Symbol;
+    std::string TempStr{};
+
+    for (std::string_view::const_iterator cIter = JsonData.cbegin(); cIter != JsonData.cend(); cIter++) {
+        char TempChar = *cIter;
+        if (TempChar == '[' or TempChar == '{') {
+            Symbol.push(TempChar);
+        } else if (TempChar == Symbol.top() + 2) {
+            Symbol.pop();
+        }
+        if (TempChar == ',' and Symbol.size() == 1) {
+            JsonChunkList.push_back(TempStr);
+            TempStr.clear();
+        } else {
+            if (*cIter != ' ' and *cIter != '\n' and !(cIter == JsonData.cbegin() or cIter == JsonData.cend() - 1))
+                TempStr.push_back(*cIter);
+        }
+    }
+    JsonChunkList.push_back(TempStr);
+    TempStr.clear();
+    return JsonChunkList;
 }
 
-int main ()
+int64_t ResolveInteger(std::string_view SpiltJsonData)
 {
-    std::string JsonPath;
-    std::cin >> JsonPath;
-    std::optional<std::string> JsonStrData = GetJsonStrData(JsonPath);
-    if (JsonStrData.has_value())
-    {
-        JsonObject main = JsonParser (JsonStrData.value(), 0);
+    size_t Length = SpiltJsonData.length();
+    int64_t RetNum = 0;
+    size_t Exp = 0;
+    int NegativeFlag = 1;
+    for (std::string_view::const_reverse_iterator cIter = SpiltJsonData.crbegin(); cIter != SpiltJsonData.crend(); cIter++) {
+        if (*cIter == '-') {
+            NegativeFlag = -1;
+        } else {
+            RetNum += (*cIter - '0') * std::pow(10, Exp);
+            Exp++;
+        }
     }
-    else return 1;
+    return RetNum * NegativeFlag;
+}
+
+double ResolveFloat(std::string_view SpiltJsonData)
+{
+    size_t Length = SpiltJsonData.length();
+    size_t Exp = 0;
+    double RetNum = 0;
+    int NegativeFlag = 1;
+
+    size_t eIndex = SpiltJsonData.find('e');
+    if (SpiltJsonData.npos == eIndex) {
+        //.
+        int Index = 0;
+        for (std::string_view::const_reverse_iterator cIter = SpiltJsonData.crbegin(); cIter != SpiltJsonData.crend(); cIter++) {
+            if (*cIter != '.' and *cIter != '-') {
+                RetNum += (*cIter - '0') * std::pow(10, Exp);
+                Exp++;
+            } else if (*cIter == '-') {
+                NegativeFlag = -1;
+            } else {
+                Index = Exp;
+            }
+        }
+        RetNum /= std::pow(10, Index) * NegativeFlag;
+    } else {
+        // e
+        // resolve the shit in front of e
+        for (int i = eIndex - 1; i >= 0; i--) {
+            if (i == 0 and SpiltJsonData[i] == '-') {
+                NegativeFlag = -1;
+            } else {
+                RetNum += (SpiltJsonData[i] - '0') * std::pow(10, Exp);
+                Exp++;
+            }
+        }
+        RetNum *= NegativeFlag;
+
+        // resolve the shit behind e
+        Exp = 0;
+        NegativeFlag = 1;
+        int RetExp = 0;
+        for (int i = Length - 1; i > eIndex; i--) {
+            if (SpiltJsonData[i] == '-') {
+                NegativeFlag = -1;
+            } else {
+                RetExp += (SpiltJsonData[i] - '0') * std::pow(10, Exp);
+                Exp++;
+            }
+        }
+        RetExp *= NegativeFlag;
+        return RetNum * std::pow(10, RetExp);
+    }
+    return RetNum;
+}
+
+JsonObject ResloveObject(std::string_view JsonStrData)
+{
+    std::vector<std::string> SplitJsonData = GetSplitJsonData(JsonStrData);
+    JsonObject JsonData;
+    std::unordered_map<std::string, JsonObject> TempMap;
+    JsonData.Data = TempMap;
+    for (std::vector<std::string>::const_iterator cVecIter = SplitJsonData.cbegin(); cVecIter != SplitJsonData.cend(); cVecIter++) {
+        size_t Index = cVecIter->find(":");
+        char NextChar = cVecIter->at(Index + 1);
+        if (IsNum(NextChar) or NextChar == '-') {
+            // num
+            bool IsFloat = true;
+            if (cVecIter->npos == cVecIter->find('.') and cVecIter->npos == cVecIter->find('e'))
+                IsFloat = false;
+            if (IsFloat) {
+                TempMap.insert(
+                    {std::string(cVecIter->cbegin() + 1, cVecIter->cbegin() + Index - 1),
+                     JsonObject(ResolveFloat(std::string_view(cVecIter->cbegin() + Index + 1, cVecIter->cend())))});
+            } else {
+                TempMap.insert(
+                    {std::string(cVecIter->cbegin() + 1, cVecIter->cbegin() + Index - 1),
+                     JsonObject(ResolveInteger(std::string_view(cVecIter->cbegin() + Index + 1, cVecIter->cend())))});
+            }
+        } else if (NextChar == '"') {
+            // string
+        } else if (NextChar == 't' or NextChar == 'f') {
+            // bool
+        } else if (NextChar == '[') {
+            // array
+        } else if (NextChar == '{') {
+            // object
+        }
+    }
+    JsonData.Data = TempMap;
+    return JsonData;
+}
+
+JsonObject ResolveJson(std::string_view JsonPath)
+{
+    std::optional<std::string> JsonStrData = GetJsonStrData(JsonPath);
+    if (!JsonStrData.has_value()) {
+        std::cout << "Resolve Failed" << '\n';
+        return {};
+    } else {
+        std::cout << "Resolve Succeed" << '\n';
+        return ResloveObject(JsonStrData.value());
+    }
+}
+
+int main()
+{
+    auto t = ResolveJson("Test.json");
+
     return 0;
 }
