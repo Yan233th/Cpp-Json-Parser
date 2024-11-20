@@ -153,6 +153,14 @@ std::string ResolveString(std::string_view SpiltJsonData)
     return std::string(SpiltJsonData.cbegin() + 1,SpiltJsonData.cend() - 1);
 }
 
+bool ResolveBool(std::string_view SpiltJsonData)
+{
+    if(SpiltJsonData[0] == 't')
+        return true;
+    else
+        return false;
+}
+
 JsonObject ResloveObject(std::string_view JsonStrData)
 {
     std::vector<std::string> SplitJsonData = GetSplitJsonData(JsonStrData);
@@ -183,10 +191,16 @@ JsonObject ResloveObject(std::string_view JsonStrData)
                  JsonObject(ResolveString(std::string_view(cVecIter->cbegin() + Index + 1, cVecIter->cend())))});
         } else if (NextChar == 't' or NextChar == 'f') {
             // bool
+            TempMap.insert({std::string(cVecIter->cbegin() + 1, cVecIter->cbegin() + Index - 1),
+                 JsonObject(ResolveBool(std::string_view(cVecIter->cbegin() + Index + 1, cVecIter->cend())))});
         } else if (NextChar == '[') {
             // array
+            // TempMap.insert({std::string(cVecIter->cbegin() + 1, cVecIter->cbegin() + Index - 1),
+            //      JsonObject(ResolveArray(std::string_view(cVecIter->cbegin() + Index + 1, cVecIter->cend())))});
         } else if (NextChar == '{') {
             // object
+            TempMap.insert({std::string(cVecIter->cbegin() + 1, cVecIter->cbegin() + Index - 1),
+                 JsonObject(ResloveObject(std::string_view(cVecIter->cbegin() + Index + 1, cVecIter->cend())))});
         }
     }
     JsonData.Data = TempMap;
