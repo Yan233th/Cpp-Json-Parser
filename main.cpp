@@ -56,16 +56,18 @@ std::vector<std::string> GetSplitJsonData(std::string_view JsonData)
     //update 
     for (std::string_view::const_iterator cIter = JsonData.cbegin(); cIter != JsonData.cend(); cIter++) {
         char TempChar = *cIter;
-        if (TempChar == '[' or TempChar == '{') {
+        if (TempChar == '[' or TempChar == '{' or (TempChar == '"' and Symbol.top() != '"')) {
             Symbol.push(TempChar);
-        } else if (TempChar == Symbol.top() + 2) {
+        } else if (TempChar == Symbol.top() + 2 or (TempChar == '"' and Symbol.top() == '"')) {
             Symbol.pop();
         }
-        if (TempChar == ',' and Symbol.size() == 1) {
+        if ((!Symbol.empty() and Symbol.top() != '"') and (TempChar == ',' and Symbol.size() == 1)) {
             JsonChunkList.push_back(TempStr);
             TempStr.clear();
         } else {
-            if (*cIter != ' ' and *cIter != '\n' and !(cIter == JsonData.cbegin() or cIter == JsonData.cend() - 1))
+            if ((!Symbol.empty() and Symbol.top() != '"') and (*cIter != ' ' and *cIter != '\n' and !(cIter == JsonData.cbegin() or cIter == JsonData.cend() - 1)))
+                TempStr.push_back(*cIter);
+            else if((!Symbol.empty() and Symbol.top() == '"'))
                 TempStr.push_back(*cIter);
         }
     }
@@ -141,11 +143,13 @@ double ResolveFloat(std::string_view SpiltJsonData)
         RetExp *= NegativeFlag;
         return RetNum * std::pow(10, RetExp);
     }
+    //需要支持同时有e和.的eg. 1.1e-10
     return RetNum;
 }
 
 std::string ResolveString(std::string_view SpiltJsonData)
 {
+    //转译符号需要增加支持
     return std::string(SpiltJsonData.cbegin() + 1,SpiltJsonData.cend() - 1);
 }
 
