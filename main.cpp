@@ -53,7 +53,7 @@ std::vector<std::string> GetSplitJsonData(std::string_view JsonData)
     std::vector<std::string> JsonChunkList;
     std::stack<char> Symbol;
     std::string TempStr{};
-
+    //update 
     for (std::string_view::const_iterator cIter = JsonData.cbegin(); cIter != JsonData.cend(); cIter++) {
         char TempChar = *cIter;
         if (TempChar == '[' or TempChar == '{') {
@@ -144,6 +144,11 @@ double ResolveFloat(std::string_view SpiltJsonData)
     return RetNum;
 }
 
+std::string ResolveString(std::string_view SpiltJsonData)
+{
+    return std::string(SpiltJsonData.cbegin() + 1,SpiltJsonData.cend() - 1);
+}
+
 JsonObject ResloveObject(std::string_view JsonStrData)
 {
     std::vector<std::string> SplitJsonData = GetSplitJsonData(JsonStrData);
@@ -169,6 +174,9 @@ JsonObject ResloveObject(std::string_view JsonStrData)
             }
         } else if (NextChar == '"') {
             // string
+            TempMap.insert(
+                {std::string(cVecIter->cbegin() + 1, cVecIter->cbegin() + Index - 1),
+                 JsonObject(ResolveString(std::string_view(cVecIter->cbegin() + Index + 1, cVecIter->cend())))});
         } else if (NextChar == 't' or NextChar == 'f') {
             // bool
         } else if (NextChar == '[') {
