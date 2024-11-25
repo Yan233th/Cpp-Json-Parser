@@ -1,8 +1,8 @@
-#include "Resolver.hpp"
+#include "JsonObject.hpp"
 
 bool IsNum(char Value)
 {
-    return (((__uint64_t)Value - (__uint64_t)'0') <= ((__uint64_t)'9' - (__uint64_t)'0'));
+    return (((uint64_t)Value - (uint64_t)'0') <= ((uint64_t)'9' - (uint64_t)'0'));
 }
 
 std::optional<std::string> GetJsonStrData(std::string_view JsonPath)
